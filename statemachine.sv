@@ -17,9 +17,9 @@ enum logic [3:0] {
 } present_state, next_state;
 
 always_comb begin // combinational logic to find next_state
-    if (~resetb)
+    /*if (~resetb)
         next_state = Sa;
-    else begin
+    else begin */
         case(present_state)
         // immediately proceed to next state on next rising slow_clk edge
             Sa: next_state = Sb;
@@ -33,7 +33,7 @@ always_comb begin // combinational logic to find next_state
                 else begin
                     case (pscore)
                         4'b1000, 4'b1001: next_state = Sh; // game over if player's score is 8 or 9
-                        4'b0000, 4'b0001, 4'b0010, 4'b0011, 4'b0100, 4'b0101: next_state = Sf // player draws third card
+                        4'b0000, 4'b0001, 4'b0010, 4'b0011, 4'b0100, 4'b0101: next_state = Sf; // player draws third card
                         4'b0110, 4'b0111: begin
                             if (dscore <= 4'b0101) // for when dscore = 0, 1, 2, 3, 4, 5
                                 next_state = Sg; // dealer draws a card
@@ -42,6 +42,7 @@ always_comb begin // combinational logic to find next_state
                         end
                         default: next_state = Se; // stay in same state otherwise
                     endcase
+                    
                 end
             end
 
@@ -53,7 +54,7 @@ always_comb begin // combinational logic to find next_state
                             4'b0101: next_state = ((pcard3 >= 4'b0100) && (pcard3 <= 4'b0111)) ? Sg : Sh;
                             4'b0100: next_state = ((pcard3 >= 4'd0010) && (pcard3 <= 4'b0111)) ? Sg : Sh;
                             4'b0011: next_state = (pcard3 != 4'b1000) ? Sg : Sh;
-                            default: next_state = Sf; // stay in same state otherwise
+                            default: next_state = Sg; // if dscore is 0,1,2,3 then dealer draws a 3rd card
                     endcase
             end
 
@@ -63,23 +64,52 @@ always_comb begin // combinational logic to find next_state
 
             default: next_state = Sa;
         endcase
-    end
+    //end
 end
 
 // sequential logic to change present_state based on rising edge of slow_clock
 always_ff@(posedge slow_clock) begin
-    present_state <= next_state;
+    if (~resetb) 
+        present_state <= Sa;
+    else
+        present_state <= next_state;
+
 end
 
 always_comb begin // combinational logic to determine outputs based on present_state
+    load_pcard1 = 1'b0;
+    load_pcard2 = 1'b0;
+    load_pcard3 = 1'b0;
+    load_dcard1 = 1'b0;
+    load_dcard2 = 1'b0;
+    load_dcard3 = 1'b0;
+    player_win_light = 1'b0;
+    dealer_win_light = 1'b0;
+
     case (present_state)
         Sb: load_pcard1 = 1'b1;
-        Sc: load_dcard1 = 1'b1;
-        Sd: load_pcard2 = 1'b1;
-        Se: load_dcard2 = 1'b1;
-        Sf: load_pcard3 = 1'b1;
-        Sg: load_dcard3 = 1'b1;
+        Sc: begin
+            load_pcard1 = 1'b0;
+            load_dcard1 = 1'b1;
+        end
+        Sd: begin
+            load_dcard1 = 1'b0;
+            load_pcard2 = 1'b1;
+        end
+        Se: begin
+            load_pcard2 = 1'b0;
+            load_dcard2 = 1'b1;
+        end
+        Sf: begin
+            load_dcard2 = 1'b0;
+            load_pcard3 = 1'b1;
+        end
+        Sg: begin
+            load_pcard3 = 1'b0;
+            load_dcard3 = 1'b1;
+        end
         Sh: begin // game over: display winner or tie
+            load_dcard3 = 1'b0;
             if (pscore == dscore) begin
                 player_win_light = 1'b1;
                 dealer_win_light = 1'b1;
@@ -88,7 +118,6 @@ always_comb begin // combinational logic to determine outputs based on present_s
                 dealer_win_light = (pscore < dscore) ? 1'b1 : 1'b0;
             end
         end
-
         default: begin // reset all signals when in Sa and all other values of present_state
             load_pcard1 = 1'b0;
             load_pcard2 = 1'b0;

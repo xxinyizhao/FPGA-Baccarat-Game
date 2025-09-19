@@ -9,12 +9,12 @@ always_comb begin
     endcase
 
     case(card2[3:0])
-    4'b1011, 4'b1100, 4'b1101: card2 = 4'b0000;
+    4'b1011, 4'b1100, 4'b1101: val2 = 4'b0000;
     default: val2 = card2;
     endcase
 
     case(card3[3:0])
-    4'b1011, 4'b1100, 4'b1101: card3 = 4'b0000;
+    4'b1011, 4'b1100, 4'b1101: val3 = 4'b0000;
     default: val3 = card3;
     endcase
 
