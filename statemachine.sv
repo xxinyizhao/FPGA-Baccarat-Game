@@ -13,7 +13,9 @@ enum logic [3:0] {
     Se = 4'b0100, // draw dcard2
     Sf = 4'b0101, // draw pcard3
     Sg = 4'b0110, // draw dcard3
-    Sh = 4'b0111 // game over
+    Sh = 4'b0111, // game over
+	 Si = 4'b1111
+	 
 } present_state, next_state;
 
 always_comb begin // combinational logic to find next_state
@@ -26,8 +28,9 @@ always_comb begin // combinational logic to find next_state
             Sb: next_state = Sc;
             Sc: next_state = Sd;
             Sd: next_state = Se;
-
-            Se: begin
+				Se: next_state = Si;
+				
+            Si: begin
                 if (dscore == 4'b1000 || dscore == 4'b1001)
                     next_state = Sh; // game over if dealer's score is 8 or 9
                 else begin
@@ -40,7 +43,7 @@ always_comb begin // combinational logic to find next_state
                             else
                                 next_state = Sh; // game over
                         end
-                        default: next_state = Se; // stay in same state otherwise
+                        default: next_state = Si; // stay in same state otherwise
                     endcase
                     
                 end
@@ -108,6 +111,8 @@ always_comb begin // combinational logic to determine outputs based on present_s
             load_pcard3 = 1'b0;
             load_dcard3 = 1'b1;
         end
+		 
+		  
         Sh: begin // game over: display winner or tie
             load_dcard3 = 1'b0;
             if (pscore == dscore) begin
@@ -118,6 +123,10 @@ always_comb begin // combinational logic to determine outputs based on present_s
                 dealer_win_light = (pscore < dscore) ? 1'b1 : 1'b0;
             end
         end
+		
+        Si: begin
+		end
+		  
         default: begin // reset all signals when in Sa and all other values of present_state
             load_pcard1 = 1'b0;
             load_pcard2 = 1'b0;
