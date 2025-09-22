@@ -11,7 +11,6 @@ module datapath(input logic slow_clock, input logic fast_clock, input logic rese
 // will hierarchically instantiate six card7seg blocks, two scorehand
 // blocks, and a dealcard block.  The registers may either be instatiated
 // or included as sequential always blocks directly in this file.
-//  
 // Follow the block diagram in the Lab 1 handout closely as you write this code.
 
 // in the brackets our signals in main module i am working on 
