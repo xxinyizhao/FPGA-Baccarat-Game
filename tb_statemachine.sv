@@ -1,3 +1,5 @@
+`timescale 1ns/1ns
+
 module tb_statemachine();
 
 // Your testbench goes here. Make sure your tests exercise the entire design
@@ -8,6 +10,9 @@ module tb_statemachine();
   reg slow_clock;                 
   reg resetb;                     
   reg [3:0] dscore, pscore, pcard3; 
+ //Error flag
+  reg err;
+
 
   // FSM outputs
   wire load_pcard1, load_pcard2, load_pcard3;
@@ -23,160 +28,535 @@ module tb_statemachine();
     .player_win_light(player_win_light), .dealer_win_light(dealer_win_light)
   );
 
-  //States
-  localparam Sa=4'b0000, Sb=4'b0001, Sc=4'b0010, Sd=4'b0011,
-             Se=4'b0100, Sf=4'b0101, Sg=4'b0110, Sh=4'b0111;
+ localparam Sa=4'b0000, Sb=4'b0001, Sc=4'b0010, Sd=4'b0011,
+           Se=4'b0100, Sf=4'b0101, Sg=4'b0110, Sh=4'b0111,
+           Si = 4'b1000, // decision state after Se
+           Sj = 4'b1001; // decision state after Sj
+ 
 
-  //Error flag
-  reg err;
-
-  // Clock generation: 10 ns period
-  initial slow_clock = 1'b0;
-  always #10 slow_clock = ~slow_clock;
-
-  //tasks to check the state transitions and the outputs seperately
-
+  // ---------------- TASKS TO CHECK STATES AND OUTPUTS ----------------//
   task check_state;
     input [3:0] expected_state;
-    input [255:0] tag; // this alllows us to know which state transition did not work
+   
     begin
-      if (dut.present_state !== expected_state) begin
-        $display("ERROR: state got=%b exp=%b @%0t  %s",
-                 dut.present_state, expected_state, $time, tag);
+      if (dut.next_state !== expected_state) begin
+        $display("ERROR: state result=%b expected=%b",
+                 dut.present_state, expected_state);
         err = 1;
       end
+	//else err = 0;
     end
   endtask
 
   task check_outputs;
     input lp1, lp2, lp3, ld1, ld2, ld3, pl, dl;
-    input [255:0] tag;
+    
+
     begin
       if ({load_pcard1,load_pcard2,load_pcard3,load_dcard1,load_dcard2,load_dcard3,player_win_light,dealer_win_light} !==
           {lp1,lp2,lp3,ld1,ld2,ld3,pl,dl}) begin
-        $display("ERROR: outputs mismatch @%0t %s", $time, tag);
-        $display(" got lp1=%0b lp2=%0b lp3=%0b ld1=%0b ld2=%0b ld3=%0b pl=%0b dl=%0b",
+        $display("ERROR: outputs mismatch!");
+        $display(" result lp1=%0b lp2=%0b lp3=%0b ld1=%0b ld2=%0b ld3=%0b pl=%0b dl=%0b",
                   load_pcard1,load_pcard2,load_pcard3,load_dcard1,load_dcard2,load_dcard3,player_win_light,dealer_win_light);
-        $display(" exp lp1=%0b lp2=%0b lp3=%0b ld1=%0b ld2=%0b ld3=%0b pl=%0b dl=%0b",
+        $display(" expected lp1=%0b lp2=%0b lp3=%0b ld1=%0b ld2=%0b ld3=%0b pl=%0b dl=%0b",
                   lp1,lp2,lp3,ld1,ld2,ld3,pl,dl);
         err = 1;
       end
+	//else err = 0;
     end
   endtask
 
-   //reset is active low 0=high 1=low 
+  task reach_state_Si;
 
-   //task for reaching Se and Sf quicker so we test all the if conditions
+  begin
+    err = 1'b0;
+    @(posedge slow_clock);resetb = 1'b0; // Reset high
+   
+  //initialize scores
+    dscore = 0; pscore = 0; pcard3=0;
+    //#10;
+    //@(posedge slow_clock); 
+    check_state(Sa);
+    check_outputs(0,0,0,0,0,0,0,0);
+   
+    #10;
+    resetb = 1'b1; //go low
 
-    task reach_Se; // reset, then walk Sa->Sb->Sc->Sd->Se and check outputs on each
-    begin
-        // apply reset
-        resetb = 1'b0; dscore = 0; pscore = 0; pcard3 = 0;
-        @(posedge slow_clock); #5;
-        check_state(Sa,"reset -> Sa");
-        check_outputs(0,0,0,0,0,0,0,0,"Sa outputs");
+    @(posedge slow_clock); // Sb load player1 card
+    check_state(Sb);
+    check_outputs(1,0,0,0,0,0,0,0);
 
-        // release reset and step to Sb..Se
-        resetb = 1'b1;
+    @(posedge slow_clock);  // Sc load dealer1 card
+    check_state(Sc);
+    check_outputs(0,0,0,1,0,0,0,0);
 
-        @(posedge slow_clock); #5; // Sb
-        check_state(Sb,"Sa->Sb");
-        check_outputs(1,0,0,0,0,0,0,0,"Sb: load_pcard1=1");
+    @(posedge slow_clock);  // Sd load player2 card
+    check_state(Sd);
+    check_outputs(0,1,0,0,0,0,0,0);
 
-        @(posedge slow_clock); #5; // Sc
-        check_state(Sc,"Sb->Sc");
-        check_outputs(0,0,0,1,0,0,0,0,"Sc: load_dcard1=1");
+    @(posedge slow_clock);   // Se load dealer 2 card
+    check_state(Se);
+    check_outputs(0,0,0,0,1,0,0,0);
 
-        @(posedge slow_clock); #5; // Sd
-        check_state(Sd,"Sc->Sd");
-        check_outputs(0,1,0,0,0,0,0,0,"Sd: load_pcard2=1");
+    //Si(to check all the if conditions)
+    @(posedge slow_clock);   // Se -> Si
+    check_state(Si);
+    check_outputs(0,0,0,0,0,0,0,0);
 
-        @(posedge slow_clock); #5; // Se
-        check_state(Se,"Sd->Se");
-        check_outputs(0,0,0,0,1,0,0,0,"Se: load_dcard2=1");
-    end
-    endtask
+   end
+  endtask
 
-    task force_Sf; // assumes we are in Se; set player 0..5 and dealer not 8/9
-    begin
-        pscore = 4'd5; dscore = 4'd4; pcard3 = 4'd0;
-        @(posedge slow_clock); #10; // Se -> Sf
-        check_state(Sf,"Se -> Sf (player<=5)");
-        check_outputs(0,0,1,0,0,0,0,0,"Sf: load_pcard3=1");
-    end
-    endtask  
+task reach_Si_quick;
+  	begin
+  	resetb = 1'b0;
+  	@(posedge slow_clock); // Sa
+        dscore = 0; pscore = 0; pcard3 = 0;
+  	resetb = 1'b1;
+  	@(posedge slow_clock); // Sb
+  	@(posedge slow_clock); // Sc
+  	@(posedge slow_clock); // Sd
+  	@(posedge slow_clock); // Se
+  	@(posedge slow_clock); // Si
+	end
+endtask
+  
 
-    /* MAIN TEST!!!!THE OTHER STATES ARE ALWAYS CHECKED WHEN WE FORCE SE TO BE REACHED FASTER(SE HAS ALL IFs)*/
+  initial slow_clock = 1'b0;
+  always  #5 slow_clock = ~slow_clock;
 
-    // dealer 8 -> Sh
-    pscore=4'd5; dscore=4'd8; pcard3=0;
-    @(posedge slow_clock); #5;
-    check_state(Sh,"Se d=8 -> Sh");
-    // Lights depend on scores; here dealer > player, so dealer light on.
-    check_outputs(0,0,0,0,0,0,0,1,"Sh lights (dealer win)");
+  //start tests//
+ 
+  initial begin
 
-    // back to Se
-    reach_Se();
+      reach_state_Si;
 
-    // dealer 9 -> Sh
-    pscore=4'd0; dscore=4'd9; pcard3=0;
-    @(posedge slow_clock); #5;
-    check_state(Sh,"Se d=9 -> Sh");
+//Check if we go to gameover state if pscore or dscore is 9 and check that player or winner lights are on
+      pscore = 4'd9; dscore = 4'd2;
+      @(posedge slow_clock);
+      check_state(Sh);
+      check_outputs(0,0,0,0,0,0,1,0);
 
-    // back to Se
-    reach_Se();
+//check for a 8 for player     
+      reach_Si_quick;
 
-    // player 8 -> Sh
-    pscore=4'd8; dscore=4'd4; pcard3=0;
-    @(posedge slow_clock); #5;
-    check_state(Sh,"Se p=8 -> Sh");
-    // tie example: set equal scores, both lights on
-    pscore=4'd8; dscore=4'd8; pcard3=0;
-    check_outputs(0,0,0,0,0,0,1,1,"Sh lights (tie)");
+      pscore = 4'd8; dscore = 4'd2;
+      @(posedge slow_clock);
+      check_state(Sh);
+      check_outputs(0,0,0,0,0,0,1,0);
+//check for a 9 for dealer      
+      reach_Si_quick;
 
-    // back to Se
-    reach_Se();
+      pscore = 4'd2; dscore = 4'd9;
+      @(posedge slow_clock);
+      check_state(Sh);
+      check_outputs(0,0,0,0,0,0,0,1);
+//check for a 8 for dealer      
+      reach_Si_quick;
 
-    // player 9 -> Sh
-    pscore=4'd9; dscore=4'd4; pcard3=0;
-    @(posedge slow_clock); #5;
-    check_state(Sh,"Se p=9 -> Sh");
+      pscore = 4'd2; dscore = 4'd8;
+      @(posedge slow_clock);
+      check_state(Sh);
+      check_outputs(0,0,0,0,0,0,0,1);
+//check for a tie
+      reach_Si_quick;
 
-    // back to Se
-    reach_Se();
+      pscore = 4'd9; dscore = 4'd9;
+      @(posedge slow_clock);
+      check_state(Sh);
+      check_outputs(0,0,0,0,0,0,1,1);
 
-    // player 0..5 -> Sf
-    pscore=4'd0; dscore=4'd4; pcard3=0;
-    @(posedge slow_clock); #5;
-    check_state(Sf,"Se p in 0..5 -> Sf");
-    check_outputs(0,0,1,0,0,0,0,0,"Sf: load_pcard3=1");
+//check when pscore 
+      reach_Si_quick;
 
-    // back to Se
-    reach_Se();
+      pscore = 4'd2; dscore = 4'd9;
+      @(posedge slow_clock);
+      check_state(Sh);
+      check_outputs(0,0,0,0,0,0,0,1);
 
-    // player 6/7 and dealer <=5 -> Sg
-    pscore=4'd6; dscore=4'd5; pcard3=0;
-    @(posedge slow_clock); #5;
-    check_state(Sg,"Se p=6 d<=5 -> Sg");
-    check_outputs(0,0,0,0,0,1,0,0,"Sg: load_dcard3=1");
-    // Sg -> Sh
-    @(posedge slow_clock); #5;
-    check_state(Sh,"Sg -> Sh");
+//check if player gets third card (0-5 case)    
+      reach_Si_quick;
 
-    // back to Se
-    reach_Se();
+      pscore = 4'd0; dscore = 4'd2;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+      reach_Si_quick;
 
-    // player 6/7 and dealer >=6 -> Sh
-    pscore=4'd7; dscore=4'd6; pcard3=0;
-    @(posedge slow_clock); #5;
-    check_state(Sh,"Se p=7 d>=6 -> Sh");
+      pscore = 4'd1; dscore = 4'd2;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+      reach_Si_quick;
 
-    // back to Se
-    reach_Se();
+      pscore = 4'd2; dscore = 4'd2;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
 
-    // default stay Se (use pscore out of normal range to hit default)
-    pscore=4'd10; dscore=4'd4; pcard3=0;
-    @(posedge slow_clock); #5;
-    check_state(Se,"Se default stay Se");
+      reach_Si_quick;
 
+      pscore = 4'd3; dscore = 4'd2;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+
+      reach_Si_quick;
+
+      pscore = 4'd4; dscore = 4'd2;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+
+      reach_Si_quick;
+
+      pscore = 4'd5; dscore = 4'd2;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+
+//check if player does not get third card
+
+      reach_Si_quick;
+
+//banker gets card but player doesnt because its 6 or 7
+      pscore = 4'd6; dscore = 4'd5;
+      @(posedge slow_clock);
+      check_state(Sg);
+      check_outputs(0,0,0,0,0,1,0,0);
+      
+      reach_Si_quick;
+
+      pscore = 4'd7; dscore = 4'd4;
+      @(posedge slow_clock);
+      check_state(Sg);
+      check_outputs(0,0,0,0,0,1,0,0);
+	
+      reach_Si_quick;
+
+//banker doesnt get a card and player doesnt because its 6 or 7, go to gameover and turn on winner lights
+      pscore = 4'd6; dscore = 4'd7;
+      @(posedge slow_clock);
+      check_state(Sh);
+      check_outputs(0,0,0,0,0,0,0,1);
+
+      reach_Si_quick;
+      pscore = 4'd7; dscore = 4'd6;
+      @(posedge slow_clock);
+      check_state(Sh);
+      check_outputs(0,0,0,0,0,0,1,0); //yes
+
+//check condition a) no card for banker if dscore = 7 so we go to gameover (start at si then decide from Sf if we go to Sh(gameover) or Sg(deal card) 
+
+      reach_Si_quick;
+      pscore = 4'd5; dscore = 4'd7;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+
+      @(posedge slow_clock) #3;
+      check_state(Sh);
+      check_outputs(0,0,0,0,0,0,0,1);
+
+
+ 
+//check condition b) dscore = 6, banker gets card if pcard = 6/7
+
+      reach_Si_quick;
+      pscore = 4'd5; dscore = 4'd6; pcard3 = 4'd6;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sj);
+      check_outputs(0,0,0,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sg);
+      check_outputs(0,0,0,0,0,1,0,0);
+
+      reach_Si_quick;
+
+      pscore = 4'd5; dscore = 4'd6; pcard3 = 4'd7;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sj);
+      check_outputs(0,0,0,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sg);
+      check_outputs(0,0,0,0,0,1,0,0);
+
+      //reach_Si_quick;
+
+//check condition c) dscore = 5 pcard=(4,5,6,7)
+
+      reach_Si_quick;
+
+      pscore = 4'd5; dscore = 4'd5; pcard3 = 4'd4;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sj);
+      check_outputs(0,0,0,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sg);
+      check_outputs(0,0,0,0,0,1,0,0);
+      reach_Si_quick;
+
+      pscore = 4'd5; dscore = 4'd5; pcard3 = 4'd5;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sj);
+      check_outputs(0,0,0,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sg);
+      check_outputs(0,0,0,0,0,1,0,0);
+      reach_Si_quick;
+
+      pscore = 4'd5; dscore = 4'd5; pcard3 = 4'd6;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sj);
+      check_outputs(0,0,0,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sg);
+      check_outputs(0,0,0,0,0,1,0,0);
+      reach_Si_quick;
+
+      pscore = 4'd5; dscore = 4'd5; pcard3 = 4'd7;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sj);
+      check_outputs(0,0,0,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sg);
+      check_outputs(0,0,0,0,0,1,0,0); 
+
+//check condition d) dscore = 4, pcard3=2,3,4,5,6,7)
+
+      reach_Si_quick;
+
+      pscore = 4'd5; dscore = 4'd4; pcard3 = 4'd2;
+
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+
+      @(posedge slow_clock);
+      check_state(Sj);
+      check_outputs(0,0,0,0,0,0,0,0);
+
+      @(posedge slow_clock);
+      check_state(Sg);
+      check_outputs(0,0,0,0,0,1,0,0);
+
+      reach_Si_quick;
+
+      pscore = 4'd5; dscore = 4'd4; pcard3 = 4'd3;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+       @(posedge slow_clock);
+      check_state(Sj);
+      check_outputs(0,0,0,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sg);
+      check_outputs(0,0,0,0,0,1,0,0);
+
+      reach_Si_quick;
+
+      pscore = 4'd5; dscore = 4'd4; pcard3 = 4'd4;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sj);
+      check_outputs(0,0,0,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sg);
+      check_outputs(0,0,0,0,0,1,0,0);
+
+      reach_Si_quick;
+
+      pscore = 4'd5; dscore = 4'd4; pcard3 = 4'd5;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sj);
+      check_outputs(0,0,0,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sg);
+      check_outputs(0,0,0,0,0,1,0,0);
+
+      reach_Si_quick;
+
+      pscore = 4'd5; dscore = 4'd4; pcard3 = 4'd6;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sj);
+      check_outputs(0,0,0,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sg);
+      check_outputs(0,0,0,0,0,1,0,0);
+
+      reach_Si_quick;
+
+      pscore = 4'd5; dscore = 4'd4; pcard3 = 4'd7;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+       @(posedge slow_clock);
+      check_state(Sj);
+      check_outputs(0,0,0,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sg);
+      check_outputs(0,0,0,0,0,1,0,0);
+
+//check condition e) dscore = 3, pcard3=1,2,3,4,5,6,7
+
+      reach_Si_quick;
+
+      pscore = 4'd0; dscore = 4'd3; pcard3 = 4'd1;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sj);
+      check_outputs(0,0,0,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sg);
+      check_outputs(0,0,0,0,0,1,0,0);
+      reach_Si_quick;
+
+      pscore = 4'd1; dscore = 4'd3; pcard3 = 4'd2;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sj);
+      check_outputs(0,0,0,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sg);
+      check_outputs(0,0,0,0,0,1,0,0);
+      reach_Si_quick;
+
+      pscore = 4'd2; dscore = 4'd3; pcard3 = 4'd3;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sj);
+      check_outputs(0,0,0,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sg);
+      check_outputs(0,0,0,0,0,1,0,0);
+      reach_Si_quick;
+
+      pscore = 4'd3; dscore = 4'd3; pcard3 = 4'd4;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sj);
+      check_outputs(0,0,0,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sg);
+      check_outputs(0,0,0,0,0,1,0,0);
+      reach_Si_quick;
+
+      pscore = 4'd4; dscore = 4'd3; pcard3 = 4'd5;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sj);
+      check_outputs(0,0,0,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sg);
+      check_outputs(0,0,0,0,0,1,0,0);
+
+      reach_Si_quick;
+
+      pscore = 4'd5; dscore = 4'd3; pcard3 = 4'd6;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sj);
+      check_outputs(0,0,0,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sg);
+      check_outputs(0,0,0,0,0,1,0,0);
+
+      reach_Si_quick;
+
+      pscore = 4'd5; dscore = 4'd3; pcard3 = 4'd7;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sj);
+      check_outputs(0,0,0,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sg);
+      check_outputs(0,0,0,0,0,1,0,0);
+
+     
+
+  //check f) dscore = 0,1,2 then dealer should get a card
+
+     reach_Si_quick;
+
+      pscore = 4'd5; dscore = 4'd0; 
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sj);
+      check_outputs(0,0,0,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sg);
+      check_outputs(0,0,0,0,0,1,0,0);
+      reach_Si_quick;
+
+      pscore = 4'd5; dscore = 4'd1; 
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sj);
+      check_outputs(0,0,0,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sg);
+      check_outputs(0,0,0,0,0,1,0,0);
+      reach_Si_quick;
+
+      pscore = 4'd5; dscore = 4'd2;
+      @(posedge slow_clock);
+      check_state(Sf);
+      check_outputs(0,0,1,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sj);
+      check_outputs(0,0,0,0,0,0,0,0);
+      @(posedge slow_clock);
+      check_state(Sg);
+      check_outputs(0,0,0,0,0,1,0,0);
+
+      reach_Si_quick;
+
+      if (!err) $display("TEST PASSED");
+      else      $display("TEST FAILED");
+
+end
 endmodule
+
