@@ -1,12 +1,9 @@
-Here’s a polished README you can use for your personal project portfolio focusing on **Task 5** of the CPEN 311 Baccarat Lab, highlighting your work with Gorata Gaolaolwe:
-
----
-
 # CPEN 311: Lab 1 – Baccarat Game (Task 5)
 
 ## Overview
+**Contributers**: Xinyi Zhao and Gorata Gaolaolwe
 
-I designed a baccarat game engine with my lab partner Gorata Gaolaolwe for our CPEN 311 (Digital Systems Design) course. We implemented a baccarat game on the DE1-SoC FPGA board, including a random number generator, datapath, state machine, score computation, and seven-segment display outputs. This game follows the **Punto Banco** variant of Baccarat, automating all card dealing, scoring, and score display.
+We designed a baccarat game engine for our CPEN 311 (Digital Systems Design) course. We implemented a baccarat game on the DE1-SoC FPGA board, including a random number generator, datapath, state machine, score computation, and seven-segment display outputs. This game follows the **Punto Banco** variant of Baccarat, automating all card dealing, scoring, and score display.
 
 ---
 
