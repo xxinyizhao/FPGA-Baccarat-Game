@@ -1,12 +1,9 @@
-// This module contains a Verilog description of the top level module
-// Assuming you don't modify the inputs and outputs of the various submodules,
-// you should not have to modify anything in this file.
-
+// Top-level module
 module task5(input logic CLOCK_50, input logic [3:0] KEY, output logic [9:0] LEDR,
             output logic [6:0] HEX5, output logic [6:0] HEX4, output logic [6:0] HEX3,
             output logic [6:0] HEX2, output logic [6:0] HEX1, output logic [6:0] HEX0);
 
-// some local signals 
+// local signals 
 
 logic fast_clock, slow_clock, resetb;
 logic load_pcard1, load_pcard2, load_pcard3;
@@ -18,7 +15,7 @@ assign resetb = KEY[3];
 assign slow_clock = KEY[0];
 assign fast_clock = CLOCK_50;
 
-// instantiate the datapath
+// instantiate datapath
 
 datapath dp(.slow_clock(slow_clock),
             .fast_clock(fast_clock),
@@ -42,7 +39,7 @@ datapath dp(.slow_clock(slow_clock),
 assign LEDR[3:0] = pscore;
 assign LEDR[7:4] = dscore;
 
-// instantiate the state machine
+// instantiate state machine
 
 statemachine sm(.slow_clock(slow_clock),
                 .resetb(resetb),
