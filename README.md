@@ -9,12 +9,12 @@ We designed a baccarat game engine for our CPEN 311 (Digital Systems Design) cou
 
 ## Project Objectives
 
-* Implement the Baccarat game logic in **SystemVerilog**.
-* Complete the **datapath** and **state machine** for automatic card dealing.
+* Implement the Baccarat game logic in SystemVerilog.
+* Implement automatic card dealing using a state machine and datapath.
 * Compute player and dealer scores correctly according to Baccarat rules.
-* Display card values on **HEX displays** and scores on LEDs.
+* Display card values on 7-segment HEX displays and scores on LEDs.
 * Indicate the winner (player, dealer, or tie) using LEDs.
-* Write **unit testbenches** for all modules to verify functionality.
+* Thoroughly test all modules to verify functionality using RTL unit testbenches.
 
 ---
 
@@ -38,11 +38,11 @@ The state machine automates the game flow:
 
 ### Testbenches
 
-We wrote **exhaustive testbenches** for all modules, and simulated them using ModelSim:
+We wrote exhaustive testbenches for all modules, and simulated them using ModelSim:
 
 * `tb_datapath.sv` – Validates correct card storage and score updates.
 * `tb_scorehand.sv` – Ensures hand scores are calculated correctly for all card combinations.
 * `tb_statemachine.sv` – Checks the correct sequence of states and control signals.
 * `tb_task5.sv` – Tests the top-level module, simulating a complete game sequence.
 
-Testbenches used **both waveform monitoring** and `$display` statements to confirm expected outputs.
+Testbenches used both waveform monitoring and `$display` statements to confirm expected outputs.
