@@ -1,4 +1,4 @@
-# CPEN 311: Lab 1 – Baccarat Game (Task 5)
+# CPEN 311: Lab 1 – Baccarat Game
 
 ## Overview
 **Contributers**: Xinyi Zhao and Gorata Gaolaolwe
@@ -18,7 +18,7 @@ We designed a baccarat game engine for our CPEN 311 (Digital Systems Design) cou
 
 ---
 
-### Datapath
+## Datapath
 
 The datapath manages the following operations:
 
@@ -27,7 +27,7 @@ The datapath manages the following operations:
 3. **Seven-segment display (`card7seg`)**: Shows card values on HEX displays.
 4. **Control signals**: Managed by the state machine, determining when each register is loaded with a new card.
 
-### State Machine
+## State Machine
 
 The state machine automates the game flow:
 
@@ -36,7 +36,7 @@ The state machine automates the game flow:
 * Generates control signals (`load_pcard1`, `load_dcard1`, etc.) for the datapath.
 * Signals the winner using LEDs: LEDR8 for player, LEDR9 for dealer, or both for a tie.
 
-### Testbenches
+## Testbenches
 
 We wrote exhaustive testbenches for all modules, and simulated them using ModelSim:
 
