@@ -1,9 +1,9 @@
-# CPEN 311: Lab 1 – Baccarat Game
+# FPGA Baccarat Game
 
 ## Overview
 **Contributers**: Xinyi Zhao and Gorata Gaolaolwe
 
-We designed a baccarat game engine for our CPEN 311 (Digital Systems Design) course. We implemented a baccarat game on the DE1-SoC FPGA board, including a random number generator, datapath, state machine, score computation, and seven-segment display outputs. This game follows the **Punto Banco** variant of Baccarat, automating all card dealing, scoring, and score display.
+We designed a baccarat game engine for one of the projects in our CPEN 311 (Digital Systems Design) course. We implemented a baccarat game on the DE1-SoC FPGA board, including a random number generator, datapath, state machine, score computation, and seven-segment display outputs. This game follows the **Punto Banco** variant of Baccarat, automating all card dealing, scoring, and score display.
 
 ---
 
